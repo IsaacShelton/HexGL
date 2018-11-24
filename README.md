@@ -1,5 +1,5 @@
 # HexGL
-Small program that converts a hex RGB colors to three floats for OpenGL
+Small program that converts hex RGB colors into three floats for OpenGL
 
 ```
 ======================================================
