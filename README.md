@@ -16,6 +16,9 @@ Example: hexgl #deadbf -c
 Example: hexgl 0xFFFFFF 123123 A0EA0E -p
 ```
 
+## Pre-built Executables
+[x86_64 - Windows Standalone](https://github.com/IsaacShelton/HexGL/raw/master/hexgl.exe)
+
 ## Compiling From Source
 ```
 $ cd HexGL
