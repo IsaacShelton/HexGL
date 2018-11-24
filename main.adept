@@ -1,0 +1,125 @@
+
+pragma compiler_version '2.1'
+pragma project_name "hexgl"
+pragma no_type_info
+pragma windows_only
+
+import 'sys/cstdio.adept'
+import 'sys/cstring.adept'
+
+func main(in argc int, in argv **ubyte) {
+    r, g, b double
+    
+    if argc < 2 {
+        printf('======================================================\n')
+        printf('HexGL Converter - (c) 2018 Isaac Shelton\n')
+        printf('======================================================\n')
+        printf('Usage: hexgl <colors and flags>\n\n')
+        printf('-p    Paste from clipboard\n')
+        printf('-c    Copy previous results to clipboard\n')
+        printf('-----------------------------------------------------\n\n')
+        printf('Example: hexgl #BADC0D\n')
+        printf('Example: hexgl #deadbf -c\n')
+        printf('Example: hexgl 0xFFFFFF 123123 A0EA0E -p\n')
+        return
+    }
+    
+    each *ubyte in [argv at 1, argc as usize - 1] {
+        if strcmp(it, '-c') == 0 {
+            storage 256 ubyte = undef
+            sprintf(&storage as *ubyte, '%.2f, %.2f, %.2f', r, g, b)
+            copy(&storage as *ubyte)
+            continue
+        }
+        
+        if strcmp(it, '-p') == 0 {
+            pasted *ubyte = paste()
+            convert(pasted, &r, &g, &b)
+            printf('%s\t-> %.2f, %.2f, %.2f\n', pasted, r, g, b)
+            delete pasted
+            continue
+        }
+        
+        convert(it, &r, &g, &b)
+        printf('%s\t-> %.2f, %.2f, %.2f\n', it, r, g, b)
+    }
+}
+
+func convert(in text *ubyte, out r, g, b *double) {
+    // Zero all outputs
+    *r = 0.0; *g = 0.0; *b = 0.0
+    
+    len usize = strlen(text)
+    if len > 1 && text[0] == '#'ub, text += 1 as ptr; len -= 1
+    if len > 2 && text[0] == '0'ub && text[1] == 'x'ub, text += 2 as ptr; len -= 2
+    if len < 6, return
+    
+    rc ubyte = hex(text[0], text[1])
+    gc ubyte = hex(text[2], text[3])
+    bc ubyte = hex(text[4], text[5])
+    
+    *r = rc as double / 255.0
+    *g = gc as double / 255.0
+    *b = bc as double / 255.0
+}
+
+func hex(a, b ubyte) ubyte {
+    value ubyte = 0
+    if b >= '0'ub && b <= '9'ub, value += b - '0'ub
+    else if b >= 'A'ub && b <= 'F'ub, value += 10 + b - 'A'ub
+    else if b >= 'a'ub && b <= 'f'ub, value += 10 + b - 'a'ub
+    
+    if a >= '0'ub && a <= '9'ub, value += (a - '0'ub) * 16
+    else if a >= 'A'ub && a <= 'F'ub, value += (10 + a - 'A'ub) * 16
+    else if a >= 'a'ub && a <= 'f'ub, value += (10 + a - 'a'ub) * 16
+    return value
+}
+
+alias HANDLE = ptr
+alias DWORD = uint
+alias BOOL = int
+alias HWND = ptr
+alias HGLOBAL = ptr
+
+CF_TEXT == 1
+GMEM_MOVEABLE == 0x0002
+foreign OpenClipboard(HWND) BOOL
+foreign GetClipboardData(long) HANDLE
+foreign GlobalLock(HANDLE) ptr
+foreign GlobalUnlock(HANDLE) void
+foreign GlobalAlloc(uint, usize) HGLOBAL
+foreign SetClipboardData(uint, HANDLE) HANDLE
+foreign EmptyClipboard() void
+foreign CloseClipboard() void
+
+func paste *ubyte {
+    if OpenClipboard(null) {
+        clipHandle HANDLE = GetClipboardData(CF_TEXT)
+        data *ubyte = GlobalLock(clipHandle)
+        dataLength usize = strlen(data) + 1
+        
+        clip *ubyte = new ubyte * dataLength
+        memcpy(clip, data, dataLength)
+        
+        GlobalUnlock(clipHandle)
+        return clip
+    }
+    
+    return null
+}
+
+func copy(text *ubyte) bool {
+   ok bool = false
+   
+   if OpenClipboard(null) {
+      hMem HGLOBAL = GlobalAlloc(GMEM_MOVEABLE, strlen(text) + 1)
+      strcpy(GlobalLock(hMem), text)
+      GlobalUnlock(hMem)
+      
+      EmptyClipboard()
+      ok = SetClipboardData(CF_TEXT, hMem)
+      CloseClipboard()
+   }
+   
+   return ok
+}
